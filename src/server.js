@@ -101,13 +101,38 @@ app.post(routes.costumers, async (req, res) => {
         const phone = req.body.phone;
         const cpf = req.body.cpf;
         const birthday = req.body.cpf;
-        if( await isAllowedCpf(cpf)){
+        if(await isAllowedCpf(cpf)){
             const newCostumer = await connection.query('INSERT INTO costumers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)', [name, phone, cpf, birthday]);
             return res.sendStatus(201);
         }
         return res.sendStatus(409);
     } catch{
-
+        return res.sendStatus(409);
     }
 });
+app.put(routes.costumers, async (req, res) => {
+    try{
+        if(!req.query.id){
+            return res.sendStatus(400);
+        }
+        if(costumerSchema.validate(req.body).error !== undefined){
+            return res.sendStatus(400);
+        }
+        const idCostumer = parseInt(req.query.id);
+        const name = req.body.name;
+        const phone = req.body.phone;
+        const cpf = req.body.cpf;
+        const birthday = req.body.cpf;
+        if(await isAllowedCpf(cpf)){
+            const updatedcostumer = await connection.query('UPDATE costumers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
+            [name, phone, cpf, birthday, idCostumer]);
+            return res.sendStatus(200);
+        }
+        return res.sendStatus(409);
+    } catch{
+        return res.sendStatus(409);
+    }
+});
+
+
 app.listen(port_server);
