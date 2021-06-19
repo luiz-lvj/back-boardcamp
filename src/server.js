@@ -1,7 +1,7 @@
 import express, { json } from 'express';
 import cors from 'cors';
 import connection from './connectDb.js';
-import { categorieSchema, gameSchema, costumerSchema } from './schemas.js';
+import { categorieSchema, gameSchema, costumerSchema, rentalSchema } from './schemas.js';
 import { isAllowedCpf, isAllowedName } from './utils.js';
 
 const app = express();
@@ -44,6 +44,12 @@ app.post(routes.categories, async (req, res) => {
 
 app.get(routes.games, async (req, res) => {
     try{
+        if(req.query.name){
+            const nameInside = req.query.name;
+            const games = await connection.query('SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id WHERE name LIKE "%$1%"', [nameInside]);
+            res.status(200);
+            return res.send(games.rows);
+        }
         const games = await connection.query('SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id');
         res.status(200);
         return res.send(games.rows);

@@ -25,5 +25,15 @@ const costumerSchema = Joi.object({
     birthday: Joi.date().format('YYYY-MM-DD').max().required(),
 });
 
+const rentalSchema = Joi.object({
+    costumerId: Joi.number().integer().positive().required(),
+    gameId: Joi.number().integer().positive().required(),
+    rentDate: Joi.date().format('YYYY-MM-DD').required(),
+    daysRented: Joi.number().integer().min(1).required(),
+    returnDate: Joi.date().format('YYYY-MM-DD').allow(null).required(),
+    originalPrice: Joi.number().integer().min(0).required(),
+    defayFee: Joi.number().integer().min(0).allow(null).required(),
+});
 
-export {categorieSchema, gameSchema, costumerSchema};
+
+export {categorieSchema, gameSchema, costumerSchema, rentalSchema};
