@@ -22,7 +22,7 @@ async function isAllowedName(tableName, name){
 
 async function isAllowedCpf(cpf){
     try{
-        const notAllowedCpfs = await connection.query('SELECT cpf from costumers WHERE cpf=$1', [cpf]);
+        const notAllowedCpfs = await connection.query('SELECT cpf FROM costumers WHERE cpf=$1', [cpf]);
         if(notAllowedCpfs.rows.length !== 0){
             return false;
         }
@@ -32,4 +32,16 @@ async function isAllowedCpf(cpf){
     }
 }
 
-export {isAllowedName, isAllowedCpf}
+async function isValidId(tableName, idNumber){
+    try{
+        const elements = await connection.query('SELECT id FROM $1 WHERE id=$2', [tableName, idNumber]);
+        if(elements.rows.length <= 0){
+            return false;
+        }
+        return true;
+    } catch{
+        return false;
+    }
+}
+
+export {isAllowedName, isAllowedCpf, isValidId}

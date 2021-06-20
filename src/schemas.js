@@ -35,5 +35,11 @@ const rentalSchema = Joi.object({
     defayFee: Joi.number().integer().min(0).allow(null).required(),
 });
 
+const rentalSchemaPost = Joi.object({
+    costumerId: Joi.number().integer().positive().required(),
+    gameId: Joi.number().integer().positive().required(),
+    daysRented: Joi.number().integer().min(1).required(),
+});
 
-export {categorieSchema, gameSchema, costumerSchema, rentalSchema};
+
+export {categorieSchema, gameSchema, costumerSchema, rentalSchema, rentalSchemaPost};
