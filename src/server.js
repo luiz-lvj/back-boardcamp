@@ -83,13 +83,16 @@ app.post(routes.games, async (req, res) => {
 app.get(routes.costumers, async (req, res) => {
     try{
         if(req.query.id){
-            const idCostumer = parseInt(req.query.id);
-            const costumer = await connection.query('SELECT * from costumers WHERE id=$1', [idCostumer]);
-            if(costumer.rows.length !== 1){
-                return res.sendStatus(404);
+            let idCostumer = parseInt(req.query.id);
+            idCostumer = typeof(idCostumer) === 'number' ? idCostumer : null;
+            if(idCostumer !== null){
+                const costumer = await connection.query('SELECT * from costumers WHERE id=$1', [idCostumer]);
+                if(costumer.rows.length !== 1){
+                    return res.sendStatus(404);
+                }
+                res.status(200);
+                return res.send(costumer.rows[0]);
             }
-            res.status(200);
-            return res.send(costumer.rows[0]);
         }
         const costumers = await connection.query('SELECT * from costumers');
         res.status(200);
@@ -124,19 +127,62 @@ app.put(routes.costumers, async (req, res) => {
         if(costumerSchema.validate(req.body).error !== undefined){
             return res.sendStatus(400);
         }
-        const idCostumer = parseInt(req.query.id);
-        const name = req.body.name;
-        const phone = req.body.phone;
-        const cpf = req.body.cpf;
-        const birthday = req.body.cpf;
-        if(await isAllowedCpf(cpf)){
-            const updatedcostumer = await connection.query('UPDATE costumers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
-            [name, phone, cpf, birthday, idCostumer]);
-            return res.sendStatus(200);
+        let idCostumer = parseInt(req.query.id);
+        idCostumer = typeof(idCostumer) === 'number' ? idCostumer : null;
+        if(idCostumer !== null){
+            const name = req.body.name;
+            const phone = req.body.phone;
+            const cpf = req.body.cpf;
+            const birthday = req.body.cpf;
+            if(await isAllowedCpf(cpf)){
+                const updatedcostumer = await connection.query('UPDATE costumers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
+                [name, phone, cpf, birthday, idCostumer]);
+                return res.sendStatus(200);
+            }
         }
         return res.sendStatus(409);
     } catch{
         return res.sendStatus(409);
+    }
+});
+
+app.get(routes.rentals, async (req, res) => {
+    try{
+        let costumerId = null;
+        let gameId = null;
+        if(req.query.costumerId){
+            costumerId = parseInt(req.query.costumerId);
+            costumerId = typeof(costumerId) === 'number' ? costumerId : null;
+        }
+        if(req.query.gameId){
+            gameId = parseInt(req.query.gameId);
+            gameId = typeof(gameId) === 'number' ? gameId : null;
+        }
+        let rentals = null;
+        if(costumerId !== null && gameId !== null){
+            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.costumerId=$1 AND costumers.gameId=$2', [costumerId, gameId]);
+        }
+        else if(costumerId !== null && gameId === null){
+            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.costumerId=$1'[costumerId]);
+        }
+        else if(gameId !== null && costumerId === null){
+            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.gameId=$1'[gameId]);
+        }
+        else{
+            rentals = await connection.query('SELECT * FROM costumers');
+        }
+        let rowsRentals = rentals.rows;
+        rowsRentals = rowsRentals.map(async (row) => {
+            const costumerQuery = await connection.query('SELECT (id, name) FROM costumers WHERE costumers.id=$1', [row.costumerId]);
+            row['costumer'] = costumerQuery.rows[0];
+            const gameQuery = await connection.query('SELECT games.id, games.name, games.categoryId, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id ');
+            row['game'] = gameQuery.rows[0];
+            return row;
+        });
+        res.status(200);
+        return res.send(rowsRentals);
+    } catch{
+        return res.sendStatus(404);
     }
 });
 
