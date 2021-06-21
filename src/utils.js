@@ -4,8 +4,8 @@ async function isAllowedName(tableName, name){
     try {
         const categories = await connection.query(`SELECT * from ${tableName}`);
         const rows = categories.rows;
-        const notAllowedNames = rows.filter(categorie => {
-            if(categorie.name === name){
+        const notAllowedNames = rows.filter(category => {
+            if(category.name === name){
                 return true;
             }
             return false;
@@ -22,7 +22,7 @@ async function isAllowedName(tableName, name){
 
 async function isAllowedCpf(cpf){
     try{
-        const notAllowedCpfs = await connection.query('SELECT cpf FROM costumers WHERE cpf=$1', [cpf]);
+        const notAllowedCpfs = await connection.query('SELECT cpf FROM customers WHERE cpf=$1', [cpf]);
         if(notAllowedCpfs.rows.length !== 0){
             return false;
         }
@@ -44,4 +44,15 @@ async function isValidId(tableName, idNumber){
     }
 }
 
-export {isAllowedName, isAllowedCpf, isValidId}
+function formatedTime(timestrap){
+    const date = new Date(timestrap);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    const strMonth = parseInt(month) > 9 ? month : '0' + month;
+    const strDay = parseInt(day) > 9 ? day : '0' + day;
+    const formated = `${year}-${strMonth}-${strDay}`;
+    return formated;
+}
+
+export {isAllowedName, isAllowedCpf, isValidId, formatedTime}

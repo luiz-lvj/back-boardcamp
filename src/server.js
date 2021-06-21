@@ -1,8 +1,8 @@
 import express, { json } from 'express';
 import cors from 'cors';
 import connection from './connectDb.js';
-import { categorieSchema, gameSchema, costumerSchema, rentalSchema, rentalSchemaPost } from './schemas.js';
-import { isAllowedCpf, isAllowedName, isValidId } from './utils.js';
+import { categorySchema, gameSchema, customerSchema, rentalSchema, rentalSchemaPost } from './schemas.js';
+import { formatedTime, isAllowedCpf, isAllowedName, isValidId } from './utils.js';
 
 const app = express();
 const port_server = 4000;
@@ -11,7 +11,7 @@ app.use(json());
 const routes = {
     categories: '/categories',
     games: '/games',
-    costumers: '/costumers',
+    customers: '/customers',
     rentals: '/rentals'
 }
 
@@ -27,7 +27,7 @@ app.get(routes.categories, async (req, res) => {
 
 app.post(routes.categories, async (req, res) => {
     try{
-        if(categorieSchema.validate(req.body).error !== undefined){
+        if(categorySchema.validate(req.body).error !== undefined){
             return res.sendStatus(400);
         }
         const name = req.body.name;
@@ -46,11 +46,12 @@ app.get(routes.games, async (req, res) => {
     try{
         if(req.query.name){
             const nameInside = req.query.name;
-            const games = await connection.query('SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id WHERE name LIKE "%$1%"', [nameInside]);
+
+            const games = await connection.query(`SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id WHERE "categoryName" LIKE '$1%'`, [nameInside]);
             res.status(200);
             return res.send(games.rows);
         }
-        const games = await connection.query('SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id');
+        const games = await connection.query('SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id');
         res.status(200);
         return res.send(games.rows);
     }
@@ -69,8 +70,18 @@ app.post(routes.games, async (req, res) => {
         const stockTotal = req.body.stockTotal;
         const categoryId = req.body.categoryId;
         const pricePerDay = req.body.pricePerDay;
+        const objGame = {
+            name, 
+            image,
+            stockTotal,
+            categoryId,
+            pricePerDay
+        }
+        if(gameSchema.validate(objGame).error !== undefined){
+            return res.sendStatus(400);
+        }
         if(await isAllowedName('games', name)){
-            const newGame = connection.query('INSERT INTO games (name, image, stockToal, categoryId, pricePerDay) VALUES ($1, $2, $3, $4, $5)', [name, image, stockTotal, categoryId, pricePerDay]);
+            const newGame = await connection.query('INSERT INTO games(name, image, "stockTotal", "categoryId", "pricePerDay") VALUES($1, $2, $3, $4, $5);', [name, image, stockTotal, categoryId, pricePerDay]);
             return res.sendStatus(201);
         }
         return res.sendStatus(409);
@@ -80,44 +91,56 @@ app.post(routes.games, async (req, res) => {
     }
 });
 
-app.get(routes.costumers + '/:id', async (req, res) => {
+app.get(routes.customers + '/:id', async (req, res) => {
     try{
-        let idCostumer = parseInt(req.params.id);
-        idCostumer = typeof(idCostumer) === 'number' ? idCostumer : null;
-        if(idCostumer !== null && isValidId('costumers', idCostumer)){
-            const costumer = await connection.query('SELECT * from costumers WHERE id=$1', [idCostumer]);
-            if(costumer.rows.length !== 1){
+        let idCustomer = parseInt(req.params.id);
+        idCustomer = typeof(idCustomer) === 'number' ? idCustomer : null;
+        if(idCustomer !== null && isValidId('customers', idCustomer)){
+            const customer = await connection.query('SELECT * from customers WHERE id=$1', [idCustomer]);
+            if(customer.rows.length !== 1){
                 return res.sendStatus(404);
             }
             res.status(200);
-            return res.send(costumer.rows[0]);
+            return res.send(customer.rows[0]);
         }
     } catch{
         return res.sendStatus(404);
     }
 });
 
-app.get(routes.costumers, async (req, res) => {
+app.get(routes.customers, async (req, res) => {
     try{
-        const costumers = await connection.query('SELECT * from costumers');
+        const customers = await connection.query('SELECT * FROM customers');
         res.status(200);
-        return res.send(costumers.rows);
+        return res.send(customers.rows);
     } catch{
         return res.sendStatus(404);
     }
 });
 
-app.post(routes.costumers, async (req, res) => {
+app.post(routes.customers, async (req, res) => {
     try{
-        if(costumerSchema.validate(req.body).error !== undefined){
+        if(customerSchema.validate(req.body).error !== undefined){
+            console.log(customerSchema.validate(req.body).error)
             return res.sendStatus(400);
         }
         const name = req.body.name;
         const phone = req.body.phone;
         const cpf = req.body.cpf;
-        const birthday = req.body.cpf;
+        const birthday = req.body.birthday;
+        const objCustomer = {
+            name,
+            phone,
+            cpf,
+            birthday
+        }
+        
+        if(customerSchema.validate(objCustomer).error !== undefined){
+            
+            return res.sendStatus(400);
+        }
         if(await isAllowedCpf(cpf)){
-            const newCostumer = await connection.query('INSERT INTO costumers (name, phone, cpf, birthday) VALUES ($1, $2, $3, $4)', [name, phone, cpf, birthday]);
+            const newcustomer = await connection.query('INSERT INTO customers(name, phone, cpf, "birthday") VALUES ($1, $2, $3, $4)', [name, phone, cpf, birthday]);
             return res.sendStatus(201);
         }
         return res.sendStatus(409);
@@ -126,24 +149,23 @@ app.post(routes.costumers, async (req, res) => {
     }
 });
 
-app.put(routes.costumers, async (req, res) => {
+app.put(routes.customers + '/:id', async (req, res) => {
     try{
-        if(!req.query.id){
+        if(!req.params.id){
             return res.sendStatus(400);
         }
-        if(costumerSchema.validate(req.body).error !== undefined){
+        if(customerSchema.validate(req.body).error !== undefined){
             return res.sendStatus(400);
         }
-        let idCostumer = parseInt(req.query.id);
-        idCostumer = typeof(idCostumer) === 'number' ? idCostumer : null;
-        if(idCostumer !== null){
+        let idCustomer = parseInt(req.params.id);
+        idCustomer = typeof(idCustomer) === 'number' ? idCustomer : null;
+        if(idCustomer !== null){
             const name = req.body.name;
             const phone = req.body.phone;
             const cpf = req.body.cpf;
-            const birthday = req.body.cpf;
+            const birthday = req.body.birthday;
             if(await isAllowedCpf(cpf)){
-                const updatedcostumer = await connection.query('UPDATE costumers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5',
-                [name, phone, cpf, birthday, idCostumer]);
+                const updatedCustomer = await connection.query('UPDATE customers SET name = $1, phone = $2, cpf = $3, birthday = $4 WHERE id = $5', [name, phone, cpf, birthday, idCustomer]);
                 return res.sendStatus(200);
             }
         }
@@ -155,37 +177,43 @@ app.put(routes.costumers, async (req, res) => {
 
 app.get(routes.rentals, async (req, res) => {
     try{
-        let costumerId = null;
+        let customerId = null;
         let gameId = null;
-        if(req.query.costumerId){
-            costumerId = parseInt(req.query.costumerId);
-            costumerId = typeof(costumerId) === 'number' ? costumerId : null;
+        if(req.query.customerId){
+            customerId = parseInt(req.query.customerId);
+            customerId = typeof(customerId) === 'number' ? customerId : null;
         }
         if(req.query.gameId){
             gameId = parseInt(req.query.gameId);
             gameId = typeof(gameId) === 'number' ? gameId : null;
         }
         let rentals = null;
-        if(costumerId !== null && gameId !== null){
-            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.costumerId=$1 AND costumers.gameId=$2', [costumerId, gameId]);
+        if(customerId !== null && gameId !== null){
+            rentals = await connection.query('SELECT * FROM rentals WHERE rentals."customerId"=$1 AND rentals."gameId"=$2', [customerId, gameId]);
         }
-        else if(costumerId !== null && gameId === null){
-            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.costumerId=$1'[costumerId]);
+        else if(customerId !== null && gameId === null){
+            rentals = await connection.query('SELECT * FROM rentals WHERE rentals."customerId"=$1'[customerId]);
         }
-        else if(gameId !== null && costumerId === null){
-            rentals = await connection.query('SELECT * FROM costumers WHERE costumers.gameId=$1'[gameId]);
+        else if(gameId !== null && customerId === null){
+            rentals = await connection.query('SELECT * FROM rentals WHERE rentals."gameId"=$1'[gameId]);
         }
         else{
-            rentals = await connection.query('SELECT * FROM costumers');
+            rentals = await connection.query('SELECT * FROM rentals');
         }
-        let rowsRentals = rentals.rows;
-        rowsRentals = rowsRentals.map(async (row) => {
-            const costumerQuery = await connection.query('SELECT (id, name) FROM costumers WHERE costumers.id=$1', [row.costumerId]);
-            row['costumer'] = costumerQuery.rows[0];
-            const gameQuery = await connection.query('SELECT games.id, games.name, games.categoryId, categories.name as "categoryName" FROM games JOIN categories ON games.categoryId=categories.id ');
-            row['game'] = gameQuery.rows[0];
-            return row;
-        });
+        let rowsRentals = [... rentals.rows];
+        rowsRentals = await Promise.all(rowsRentals.map(async (row) => {
+            try{
+                let newRow = {...row}
+                const customerQuery = await connection.query('SELECT id, name FROM customers WHERE customers.id=$1', [row.customerId]);
+                newRow['customer'] = customerQuery.rows[0];
+                const gameQuery = await connection.query('SELECT games.id, games.name, games."categoryId", categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id');
+                newRow['game'] = gameQuery.rows[0];
+                console.log(newRow);
+                return newRow;
+            } catch(err){
+                return null;
+            }
+        }));
         res.status(200);
         return res.send(rowsRentals);
     } catch{
@@ -214,7 +242,7 @@ app.post(routes.rentals + '/:id/return', async (req, res) => {
         const pricePerDay = parseInt(game.rows[0].pricePerDay);
         const delayFee = diffDays * pricePerDay;
         const newRental = {
-            costumerID: rental.costumerId,
+            customerID: rental.customerId,
             gameId: rental.gameId,
             rentDate: rental.rentDate,
             daysRented: rental.daysRented,
@@ -238,27 +266,27 @@ app.post(routes.rentals, async (req, res) => {
         if(rentalSchemaPost.validate(req.body).error !== undefined){
             return res.sendStatus(400);
         }
-        let costumerId = req.body.costumerId;
-        costumerId = typeof(costumerId) === 'number' ? costumerId : null;
-        if(costumerId === null){
+        let customerId = parseInt(req.body.customerId);
+        customerId = typeof(customerId) === 'number' ? customerId : null;
+        if(customerId === null){
             return res.sendStatus(400);
         }
         const gameId = parseInt(req.body.gameId);
         const daysRented = parseInt(req.body.daysRented);
-        const rentDate = Date.now().toISOString().slice(0, 10);
+        const rentDate = formatedTime(Date.now());
         const returnDate = null;
         const delayFee = null;
-        const game = await connection.query('SELECT pricePerDay FROM games WHERE id=$1', [gameId]);
+        const game = await connection.query('SELECT "pricePerDay" FROM games WHERE id=$1', [gameId]);
         if(game.rows.length <= 0){
             return res.sendStatus(404);
         }
         const pricePerDay = parseInt(game.rows[0].pricePerDay);
         const originalPrice = daysRented * pricePerDay;
-        if(!isValidId('costumers', costumerId) || !isValidId('games', gameId)){
+        if(!isValidId('customers', customerId) || !isValidId('games', gameId)){
             return res.sendStatus(400);
         }
         const objRental = {
-            costumerId,
+            customerId,
             gameId,
             rentDate,
             daysRented,
@@ -269,10 +297,10 @@ app.post(routes.rentals, async (req, res) => {
         if(rentalSchema.validate(objRental).error !== undefined){
             return res.sendStatus(400);
         }
-        const newRent = await connection.query('INSERT INTO rentals (costumerId, gameId, rentDate, daysRented, returnDdate, originalPrice, delayFee) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [costumerId, gameId, rentDate, daysRented, returnDate, originalPrice, delayFee]);
+        const newRent = await connection.query('INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)', [customerId, gameId, rentDate, daysRented, returnDate, originalPrice, delayFee]);
         return res.sendStatus(201);        
-    } catch{
+    } catch(err){
+        console.log(err)
         return res.sendStatus(400);
     }
 });
