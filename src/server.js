@@ -243,21 +243,18 @@ app.post(routes.rentals + '/:id/return', async (req, res) => {
         const newRental = {
             customerId: rental.customerId,
             gameId: rental.gameId,
-            rentDate: rental.rentDate,
+            rentDate: rentDate,
             daysRented: rental.daysRented,
             returnDate: newReturnDate,
             originalPrice: rental.originalPrice,
             delayFee: delayFee,
         }
-        console.log(newRental)
         if(rentalSchema.validate(newRental).error !== undefined){
             return res.sendStatus(400);
         }
-        
         const updateRental = await connection.query('UPDATE rentals SET "returnDate"=$1, "delayFee"=$2 WHERE id=$3', [newReturnDate, delayFee, rental.id]);
         return res.sendStatus(200);
     } catch(err){
-        console.log(err)
         return res.sendStatus(404);
     }
 })
@@ -311,8 +308,8 @@ app.delete(routes.rentals + '/:id', async (req, res) => {
         if(!isValidId('rentals', idRental)){
             return res.sendStatus(404);
         }
-        const rental = await connection.query('SELECT returnDate FROM rentals WHERE id=$1', [idRental]);
-        if(rental.rows[0].returnDate === null){
+        const rental = await connection.query('SELECT "returnDate" FROM rentals WHERE id=$1', [idRental]);
+        if(rental.rows[0].returnDate !== null){
             return res.sendStatus(400);
         }
         const deleteRental = await connection.query('DELETE FROM rentals WHERE id=$1', [idRental]);
