@@ -46,8 +46,8 @@ app.get(routes.games, async (req, res) => {
     try{
         if(req.query.name){
             const nameInside = req.query.name;
-
-            const games = await connection.query(`SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id WHERE "categoryName" LIKE '$1%'`, [nameInside]);
+            const games = await connection.query(`SELECT games.*, categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id WHERE categories.name LIKE $1 || '%'`, [nameInside]);
+            console.log(games)
             res.status(200);
             return res.send(games.rows);
         }
@@ -55,7 +55,8 @@ app.get(routes.games, async (req, res) => {
         res.status(200);
         return res.send(games.rows);
     }
-    catch{
+    catch (err){
+        console.log(err)
         return res.sendStatus(404);
     }
 });
@@ -110,6 +111,12 @@ app.get(routes.customers + '/:id', async (req, res) => {
 
 app.get(routes.customers, async (req, res) => {
     try{
+        if(req.query.cpf){
+            const cpfInside = req.query.cpf;
+            const customers = await connection.query(`SELECT * FROM customers where cpf LIKE $1 || '%'`, [cpfInside]);
+            res.status(200);
+            return res.send(customers.rows);
+        }
         const customers = await connection.query('SELECT * FROM customers');
         res.status(200);
         return res.send(customers.rows);
