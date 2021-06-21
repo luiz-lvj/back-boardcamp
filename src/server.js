@@ -121,7 +121,6 @@ app.get(routes.customers, async (req, res) => {
 app.post(routes.customers, async (req, res) => {
     try{
         if(customerSchema.validate(req.body).error !== undefined){
-            console.log(customerSchema.validate(req.body).error)
             return res.sendStatus(400);
         }
         const name = req.body.name;
@@ -208,7 +207,6 @@ app.get(routes.rentals, async (req, res) => {
                 newRow['customer'] = customerQuery.rows[0];
                 const gameQuery = await connection.query('SELECT games.id, games.name, games."categoryId", categories.name as "categoryName" FROM games JOIN categories ON games."categoryId"=categories.id');
                 newRow['game'] = gameQuery.rows[0];
-                console.log(newRow);
                 return newRow;
             } catch(err){
                 return null;
@@ -231,18 +229,19 @@ app.post(routes.rentals + '/:id/return', async (req, res) => {
         if(rental.returnDate !== null){
             return res.sendStatus(400);
         }
-        const rentDate = new Date(rental.rentDate, 'yyyy-mm-dd');
-        const oldReturnDate = new Date(rentDate.getFullYear(), rentDate.getMonth(), rentDate.getDate() + rental.daysRented);
-        const newReturnDate = Date.now().toISOString().slice(0, 10);
-        const diffDays = Math.floor(Math.abs(new Date(newReturnDate, 'yyyy-mm-dd')-oldReturnDate)/(1000*86400));
-        const game = await connection.query('SELECT pricePerDay FROM games WHERE id=$1', [gameId]);
+        const rentDate = formatedTime(new Date(rental.rentDate));
+        const oldReturnDate = new Date(new Date(rental.rentDate).getTime() + new Date(rental.daysRented*3600*24).getTime() );
+        const newReturnDate = formatedTime(Date.now());
+        const diffDays = Math.floor(Math.abs(Date.now()-oldReturnDate)/(1000*86400));
+        const gameId = parseInt(rental.gameId);
+        const game = await connection.query('SELECT "pricePerDay" FROM games WHERE id=$1', [gameId]);
         if(game.rows.length <= 0){
             return res.sendStatus(404);
         }
         const pricePerDay = parseInt(game.rows[0].pricePerDay);
         const delayFee = diffDays * pricePerDay;
         const newRental = {
-            customerID: rental.customerId,
+            customerId: rental.customerId,
             gameId: rental.gameId,
             rentDate: rental.rentDate,
             daysRented: rental.daysRented,
@@ -250,13 +249,15 @@ app.post(routes.rentals + '/:id/return', async (req, res) => {
             originalPrice: rental.originalPrice,
             delayFee: delayFee,
         }
-        if(rentalSchema.validate(objRental).error !== undefined){
+        console.log(newRental)
+        if(rentalSchema.validate(newRental).error !== undefined){
             return res.sendStatus(400);
         }
-        const updateRental = await connection.query('UPDATE rentals SET returnDate=$1, delayFee=$2 WHERE id=$3',
-        [newReturnDate, delayFee, rental.id]);
+        
+        const updateRental = await connection.query('UPDATE rentals SET "returnDate"=$1, "delayFee"=$2 WHERE id=$3', [newReturnDate, delayFee, rental.id]);
         return res.sendStatus(200);
-    } catch{
+    } catch(err){
+        console.log(err)
         return res.sendStatus(404);
     }
 })
@@ -300,7 +301,6 @@ app.post(routes.rentals, async (req, res) => {
         const newRent = await connection.query('INSERT INTO rentals ("customerId", "gameId", "rentDate", "daysRented", "returnDate", "originalPrice", "delayFee") VALUES ($1, $2, $3, $4, $5, $6, $7)', [customerId, gameId, rentDate, daysRented, returnDate, originalPrice, delayFee]);
         return res.sendStatus(201);        
     } catch(err){
-        console.log(err)
         return res.sendStatus(400);
     }
 });
